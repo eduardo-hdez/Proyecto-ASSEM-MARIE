@@ -1,0 +1,352 @@
+/ *** 14 de septiembre de 2025 *** /
+/ *** Eduardo Hernández Alonso - A01707225 *** /
+/ *** Santiago Acosta Escamilla - A0127107 *** /
+/ *** Víctor Adrián García Galván - A01713062 *** /
+/ *** Luis Eduardo Gutiérrez Chavarría - A01707310 *** /
+
+/ *** Obtener la temperatura más baja y más alta *** /
+	Load Addr              / AC <- dirección base de la tabla Temp
+	Store Next             / Next = Addr (puntero de recorrido)
+	Load Num               / AC <- número de elementos (30)
+	Subt One               / AC = Num - 1 (contador de iteraciones restantes)
+	Store Ctr              / Ctr = Num - 1
+    Clear                  / AC = 0
+    Store Index            / Index = 0 (índice actual dentro de la tabla)
+
+CicloMinMax, LoadI Next    / AC <- Temp[Index]
+	Subt Min               / AC = Temp[Index] - Min
+	Skipcond 800           / Si AC > 0 (Temp[Index] > Min) salta la siguiente línea; si no, ejecutar SubMin
+    JnS SubMin             / Llama a SubMin para actualizar el mínimo y su índice
+    LoadI Next             / AC <- Temp[Index] (relee el valor actual)
+    Subt Max               / AC = Temp[Index] - Max
+    Skipcond 000           / Si AC < 0 (negativo), saltar a Jns SubMax; si AC == 0 || > 0 no salta
+    Jns SubMax             / Llama a SubMax si Temp[Index] >= Max para actualizar máximo e índice
+    Load Next              / AC <- Next (dirección actual)
+	Add One                / AC = Next + 1 (siguiente celda)
+	Store Next             / Next avanza a siguiente elemento
+    Load Index             / AC <- Index actual
+    Add One                / AC = Index + 1
+    Store Index            / Index++
+	Load Ctr               / AC <- Ctr (quedan elementos por revisar)
+	Subt One               / AC = Ctr - 1
+	Store Ctr              / Ctr--
+	Skipcond 000           / Si AC < 0 (ya no quedan elementos), saltar al Jump; si no, continúa
+	Jump CicloMinMax       / Repite el escaneo de min y max
+
+    Load Min               / AC <- Min
+    Output                 / Imprime Min
+    Load MinIndex          / AC <- MinIndex (posición del mínimo)
+    Jump MultMin           / Salta a rutina para “multiplicar por 10” MinIndex generando segundos de salida
+
+PrintMin, Load Seconds     / Punto de retorno de MultMin: AC <- Seconds (MinIndex*10)
+    Output                 / Imprime “segundos” (MinIndex*10)
+    Load Max               / AC <- Max
+    Output                 / Imprime Max
+    Load Zero              / AC <- 0
+    Store Seconds          / Reinicia Seconds = 0 (se usará para MaxIndex)
+    Load MaxIndex          / AC <- MaxIndex
+    Jump MultMax           / Salta a rutina para multiplicar MaxIndex por 10
+
+PrintMax, Load Seconds     / Punto de retorno de MultMax: AC <- Seconds (MaxIndex*10)
+          Output           / Imprime “segundos” (MaxIndex*10)
+
+/ *** Ordenar las temperaturas (bubble sort) y calcular mediana *** /
+Ciclo1,	Load Addr          / AC <- Addr (inicio de la tabla)
+	Store Next             / Next = Addr (puntero de burbuja)
+    Clear                  / AC = 0
+    Store Swap             / Swap = 0 (marca si hubo intercambio en esta pasada)
+	Load Num               / AC <- Num
+	Subt One               / AC = Num - 1 (comparaciones por pasada)
+	Store Ctr              / Ctr = Num - 1
+
+Ciclo2,	LoadI Next        / AC <- Valor en posición i
+	Store Valor1          / Value1 = Temp[i]
+    Load Next             / AC <- dirección actual (i)
+    Add One               / AC = i + 1
+    Store Next            / Next -> i+1 temporalmente
+    LoadI Next            / AC <- Valor en posición i+1
+    Store Valor2          / Value2 = Temp[i+1]
+    Load Next             / AC <- (i+1)
+    Subt One              / AC = i
+    Store Next            / Next vuelve a apuntar a i
+    Load Valor2           / AC <- Value2
+    Subt Valor1           / AC = Value2 - Value1
+    Skipcond 000          / Si AC < 0 (Valor2 < Valor1) salta a NoSwap; si AC == 0 o > 0, sigue a JnS SubSwap
+    Jump NoSwap           / Si Valor2 < Valor1, no entra aquí (porque saltó)
+    JnS SubSwap           / Si AC >= 0 (Valor2 >= Valor1), se llama a SubSwap para intercambiar
+
+NoSwap,	Load Next         / AC <- i
+	Add One               / AC = i + 1
+	Store Next            / Next avanza a la siguiente comparación
+	Load Ctr              / AC <- Ctr
+	Subt One              / AC = Ctr - 1
+	Store Ctr             / Ctr--
+	Skipcond 000          / Si aún quedan comparaciones (AC >= 0) sigue; si AC < 0 termina pasada
+	Jump Ciclo2           / Continúa comparando pares
+    Load Swap             / AC <- Swap (¿hubo algún intercambio en esta pasada?)
+    Skipcond 400          / Si AC == 0 (ningún intercambio), lista ordenada -> no salta la siguiente instrucción
+    Jump Ciclo1           / Si AC != 0 (hubo swaps), repetir otra pasada (burbuja)
+
+/ *** Buscar mediana *** /
+    Load Addr             / AC <- Addr
+    Store Next            / Next = Addr
+    Load Num              / AC <- Num (número de elementos)
+    Store Ctr             / Ctr = Num (para dividir entre 2)
+Division, Load DivCtr     / AC <- DivCtr (contador de “divisiones”)
+    Add One               / AC = DivCtr + 1
+    Store DivCtr          / DivCtr++
+	Load Ctr              / AC <- Ctr
+    Subt Two              / AC = Ctr - 2
+    Store Ctr             / Ctr -= 2
+    Skipcond 000          / Si Ctr < 0 (negativo), salir del bucle; si no, continuar
+    Jump Division         / Repite hasta que Ctr < 0
+    Load DivCtr           / AC <- DivCtr (mitad “entera”)
+    Skipcond 400          / Si AC == 0 (Num era 0 o 1), saltar a IterateMed; si no, continuar
+    Jump IterateMed       / Si AC != 0 también salta, pues necesitamos iterar hasta el índice medio
+    Add One               / (No se ejecuta en práctica: línea de seguridad)
+
+IterateMed, Store DivCtr  / Guarda el número de pasos para avanzar desde Addr
+    Load Next             / AC <- Addr o posición actual
+    Add One               / AC = Next + 1
+    Store Next            / Next++
+    Load DivCtr           / AC <- pasos restantes
+    Subt One              / AC = DivCtr - 1
+    Store DivCtr          / DivCtr--
+    Skipcond 000          / Si todavía >= 0, seguir iterando; si < 0, ya estamos en mediana
+    Jump IterateMed       / Avanza hasta alcanzar el índice medio
+    LoadI Next            / AC <- valor en la posición de la mediana
+    Output                / Imprime la mediana
+
+/ *** Convertir temperaturas a Fahrenheit usando la tabla original Temp *** /
+    Load Addr             / AC <- Addr (reinicia puntero)
+    Store Next            / Next = Addr
+    Load Num              / AC <- Num
+    Store Ctr             / Ctr = Num (contador de conversiones)
+
+CicloConv, LoadI Next     / AC <- Temp[i] (valor Celsius)
+    Store TempInd         / TempInd = Temp[i]
+    Load TempInd          / AC <- TempInd
+    Add AddrF             / AC = AddrF + TempInd 
+    Store NextF           / NextF = puntero a TempCaF[TempInd]
+    LoadI NextF           / AC <- TempCaF[TempInd] (valor Fahrenheit)
+    Output                / Imprime Fahrenheit correspondiente
+    Load Next             / AC <- dirección actual i
+    Add One               / AC = i + 1
+    Store Next            / Next avanza al siguiente elemento de Temp
+    Load Ctr              / AC <- Ctr
+    Subt One              / AC = Ctr - 1
+    Store Ctr             / Ctr--
+    Skipcond 000          / Si quedan elementos (AC >= 0) sigue; si <0, terminó
+    Jump CicloConv        / Repite conversión para toda la tabla
+    Halt                  / Fin del programa
+
+/ *** Variables y Constantes *** /
+Addr,	Adr	Temp           / Dirección base de la tabla de temperaturas (Celsius)
+AddrF,	Adr	TempCaF         / Dirección base de la tabla de conversión a Fahrenheit
+Index,  Dec 0              / Índice actual para escaneo de min/max
+MinIndex, Dec 0            / Índice donde se encontró el mínimo
+MaxIndex, Dec 0            / Índice donde se encontró el máximo
+Seconds, Dec 0             / Acumulador de “segundos” = índice*10 para salida
+Ten, Dec 10                / Constante 10
+Zero, Dec 0                / Constante 0
+Next,	Hex	 0             / Puntero de recorrido (dirección actual en Temp)
+NextF,	Hex	 0             / Puntero a tabla Fahrenheit (dirección en TempCaF)
+Num,	Dec	 30            / Número de elementos en Temp
+Sum,	Dec	 0             / No usado aquí (reserva)
+Min,	Dec	 999           / Inicialización del mínimo 
+Max,    Dec  0             / Inicialización del máximo
+Valor1,	Dec	 0             / Valor izquierda en comparación de burbuja
+Valor2,	Dec	 0             / Valor derecha en comparación de burbuja
+Swap,   Dec  0             / Bandera si hubo intercambio en pasada
+Ctr,	Hex	 0             / Contador genérico de bucles
+DivCtr,	Hex	 0             / Contador para cálculo de índice medio
+One,	Dec	 1             / Constante 1
+Two,	Dec	 2             / Constante 2
+TempInd,  Dec 0            / Índice temporal para acceder a tabla TempCaF
+
+Temp,	Dec	 30			
+		Dec	 40
+		Dec	 50
+		Dec	 60
+		Dec	 70
+		Dec	 80			
+		Dec	 70
+		Dec	 60
+		Dec	 50
+		Dec	 60
+		Dec	 70			
+		Dec	 80
+		Dec	 90
+		Dec	 80
+		Dec	 70
+		Dec	 60			
+		Dec	 50
+		Dec	 40
+		Dec	 30
+		Dec	 20
+		Dec	 10			
+		Dec	 20
+		Dec	 30
+		Dec	 40
+		Dec	 50
+		Dec	 60			
+		Dec	 70
+		Dec	 50
+		Dec  10
+		Dec  80
+
+// *** Tabla Fahrenheit (TempCF) ***
+TempCaF, Dec 32  / 0° Celsius
+		Dec 34  / 1° Celsius
+        Dec 36  / 2° Celsius
+        Dec 37  / 3° Celsius
+        Dec 39  / 4° Celsius
+        Dec 41  / 5° Celsius
+        Dec 43  / 6° Celsius
+        Dec 45  / 7° Celsius
+        Dec 46  / 8° Celsius
+        Dec 48  / 9° Celsius
+        Dec 50  / 10° Celsius
+        Dec 52  / 11° Celsius
+        Dec 54  / 12° Celsius
+        Dec 55  / 13° Celsius
+        Dec 57  / 14° Celsius
+        Dec 59  / 15° Celsius
+        Dec 61  / 16° Celsius
+        Dec 63  / 17° Celsius
+        Dec 64  / 18° Celsius
+        Dec 66  / 19° Celsius
+        Dec 68  / 20° Celsius
+        Dec 70  / 21° Celsius
+        Dec 72  / 22° Celsius
+        Dec 73  / 23° Celsius
+        Dec 75  / 24° Celsius
+        Dec 77  / 25° Celsius
+        Dec 79  / 26° Celsius
+        Dec 81  / 27° Celsius
+        Dec 82  / 28° Celsius
+        Dec 84  / 29° Celsius
+        Dec 86  / 30° Celsius
+        Dec 88  / 31° Celsius
+        Dec 90  / 32° Celsius
+        Dec 91  / 33° Celsius
+        Dec 93  / 34° Celsius
+        Dec 95  / 35° Celsius
+        Dec 97  / 36° Celsius
+        Dec 99  / 37° Celsius
+        Dec 100 / 38° Celsius
+        Dec 102 / 39° Celsius
+        Dec 104 / 40° Celsius
+        Dec 106 / 41° Celsius
+        Dec 108 / 42° Celsius
+        Dec 109 / 43° Celsius
+        Dec 111 / 44° Celsius
+        Dec 113 / 45° Celsius
+        Dec 115 / 46° Celsius
+        Dec 117 / 47° Celsius
+        Dec 118 / 48° Celsius
+        Dec 120 / 49° Celsius
+        Dec 122 / 50° Celsius
+        Dec 124 / 51° Celsius
+        Dec 126 / 52° Celsius
+        Dec 127 / 53° Celsius
+        Dec 129 / 54° Celsius
+        Dec 131 / 55° Celsius
+        Dec 133 / 56° Celsius
+        Dec 135 / 57° Celsius
+        Dec 136 / 58° Celsius
+        Dec 138 / 59° Celsius
+        Dec 140 / 60° Celsius
+        Dec 142 / 61° Celsius
+        Dec 144 / 62° Celsius
+        Dec 145 / 63° Celsius
+        Dec 147 / 64° Celsius
+        Dec 149 / 65° Celsius
+        Dec 151 / 66° Celsius
+        Dec 153 / 67° Celsius
+        Dec 154 / 68° Celsius
+        Dec 156 / 69° Celsius
+        Dec 158 / 70° Celsius
+        Dec 160 / 71° Celsius
+        Dec 162 / 72° Celsius
+        Dec 163 / 73° Celsius
+        Dec 165 / 74° Celsius
+        Dec 167 / 75° Celsius
+        Dec 169 / 76° Celsius
+        Dec 171 / 77° Celsius
+        Dec 172 / 78° Celsius
+        Dec 174 / 79° Celsius
+        Dec 176 / 80° Celsius
+        Dec 178 / 81° Celsius
+        Dec 180 / 82° Celsius
+        Dec 181 / 83° Celsius
+        Dec 183 / 84° Celsius
+        Dec 185 / 85° Celsius
+        Dec 187 / 86° Celsius
+        Dec 189 / 87° Celsius
+        Dec 190 / 88° Celsius
+        Dec 192 / 89° Celsius
+        Dec 194 / 90° Celsius
+        Dec 196 / 91° Celsius
+        Dec 198 / 92° Celsius
+        Dec 199 / 93° Celsius
+        Dec 201 / 94° Celsius
+        Dec 203 / 95° Celsius
+        Dec 205 / 96° Celsius
+        Dec 207 / 97° Celsius
+        Dec 208 / 98° Celsius
+        Dec 210 / 99° Celsius
+        Dec 212 / 100° Celsius
+
+/ *** Subrutinas *** /
+MultMin, Load MinIndex   / AC <- MinIndex
+	Subt One             / AC = MinIndex - 1
+    Store MinIndex       / MinIndex--
+    Load Seconds         / AC <- Seconds
+    Add Ten              / AC += 10
+    Store Seconds        / Seconds acumula múltiplos de 10
+    Load MinIndex        / AC <- MinIndex actualizado
+    Skipcond 400         / Si MinIndex == 0, salir; si no, continuar
+    Jump MultMin         / Itera hasta acumular MinIndex*10
+    Jump PrintMin        / Al terminar, continuar impresión
+
+MultMax, Load MaxIndex   / AC <- MaxIndex
+	Subt One             / AC = MaxIndex - 1
+    Store MaxIndex       / MaxIndex--
+    Load Seconds         / AC <- Seconds
+    Add Ten              / AC += 10
+    Store Seconds        / Seconds acumula múltiplos de 10
+    Load MaxIndex        / AC <- MaxIndex actualizado
+    Skipcond 400         / Si MaxIndex == 0, salir; si no, continuar
+    Jump MultMax         / Itera hasta acumular MaxIndex*10
+    Jump PrintMax        / Al terminar, continuar impresión
+
+SubMin,	Hex 0            / Punto de retorno para JnS
+    LoadI Next           / AC <- Temp[Index] (nuevo mínimo)
+    Store Min            / Min = Temp[Index]
+    Load Index           / AC <- Index
+    Store MinIndex       / MinIndex = Index
+    JumpI SubMin         / Retorno de subrutina
+
+SubMax, Hex 0            / Punto de retorno para JnS
+    LoadI Next           / AC <- Temp[Index] (nuevo máximo)
+    Store Max            / Max = Temp[Index]
+    Load Index           / AC <- Index
+    Store MaxIndex       / MaxIndex = Index
+    JumpI SubMax         / Retorno de subrutina
+
+SubSwap, Hex 0           / Punto de retorno para JnS
+    Load Valor2          / AC <- Valor2 (derecha)
+    StoreI Next          / Temp[i] = Valor2
+    Load Next            / AC <- i
+    Add One              / AC = i + 1
+    Store Next           / Next -> i+1
+    Load Valor1          / AC <- Value1 (izquierda)
+    StoreI Next          / Temp[i+1] = Valor1
+    Load Next            / AC <- i+1
+    Subt One             / AC = i
+    Store Next           / Next regresa a i
+    Clear                / AC = 0
+    Add One              / AC = 1
+    Store Swap           / Swap = 1 (hubo intercambio en esta pasada)
+    JumpI SubSwap        / Retorno de subrutina
